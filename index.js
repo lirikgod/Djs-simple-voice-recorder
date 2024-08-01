@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { joinVoiceChannel, VoiceConnectionStatus, EndBehaviorType } = require('@discordjs/voice');
 const fs = require('fs');
 const prism = require('prism-media');
+const ffmpegpath = require('ffmpeg-static');
 const { spawn } = require('child_process');
 
 const client = new Client({
@@ -68,13 +69,13 @@ client.on('messageCreate', async message => {
                     const audioStream = receiver.subscribe(userId, {
                         end: {
                             behavior: EndBehaviorType.AfterSilence,
-                            duration: 100
+                            duration: 500
                         }
                     });
 
                     audioStreams.set(userId, audioStream);
 
-                    const pcmStream = new prism.opus.Decoder({ rate: 16000, channels: 1, frameSize: 960 });
+                    const pcmStream = new prism.opus.Decoder({ rate: 16000, channels: 2, frameSize: 960 });
 
                     audioStream.pipe(pcmStream).pipe(pcmWriteStream, { end: false });
 
@@ -113,7 +114,14 @@ client.on('messageCreate', async message => {
             pcmWriteStream.end(() => {
                 // Конвертируем PCM в MP3
                 const mp3Path = './output.mp3';
-                const ffmpeg = spawn('ffmpeg', ['-f', 's16le', '-ar', '16000', '-ac', '1', '-i', outputPath, mp3Path]);
+                const ffmpeg = spawn(ffmpegpath, [
+                    '-f', 's16le', '-ar', '16000', '-ac', '2', 
+                    '-i', outputPath,
+                    '-b:a', '32k',  // Bitrate
+                    '-ar', '16000',  // Sample rate
+                    '-ac', '2',      // Mono channel
+                    mp3Path
+                ]);
 
                 ffmpeg.on('close', (code) => {
                     if (code === 0) {
